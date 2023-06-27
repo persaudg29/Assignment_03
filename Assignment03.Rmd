@@ -1,0 +1,140 @@
+---
+title: "Assignment 03"
+author: "Ganesh Persaud"
+date: "2023-06-27"
+output: 
+   html_document:
+          theme:
+              bootswatch: "superhero"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/Desktop")
+```
+
+```{r Move this into a good local directory for your current working directory and read and save it.}
+ 
+
+file_path <- "~/Desktop/StormEvents_details-ftp_v1.0_d1989_c20220425.csv"
+
+data <- read.csv(file_path)
+
+str(data)
+
+head(data)
+
+```
+
+```{r Limit the dataframe to the following columns}
+
+filtered_data <- c("BEGIN_YEARMONTH", "EPISODE_ID", "STATE", "STATE_FIPS", "CZ_NAME", "CZ_TYPE", "CZ_FIPS", "EVENT_TYPE")
+
+subset_data <- data[filtered_data]
+
+str(subset_data)
+
+```
+
+```{r Arrange the data by the state name (STATE)}
+
+library(dplyr)
+
+arranged_data <- arrange(subset_data, STATE)
+
+head(arranged_data)
+
+
+```
+
+```{r Change state and county names to title case (e.g., “New Jersey” instead of “NEW JERSEY”) }
+
+library(stringr)
+
+arranged_data$STATE <- str_to_title(arranged_data$STATE)
+arranged_data$CZ_NAME <- str_to_title(arranged_data$CZ_NAME)
+
+head(arranged_data)
+
+```
+
+
+```{r Limit to the events listed by county FIPS (CZ_TYPE of “C”) and then remove the CZ_TYPE column}
+
+library(dplyr)
+
+filtered_data <- filter(arranged_data, CZ_TYPE == "C")
+
+filtered_data <- select(filtered_data, -CZ_TYPE)
+
+head(filtered_data)
+
+```
+
+```{r Pad the state and county FIPS with a “0” at the beginning}
+
+library(stringr)
+library(dplyr)
+library(tidyr)
+
+padded_data <- arranged_data %>%
+  mutate(STATE_FIPS = str_pad(STATE_FIPS, width = 2, pad = "0"),
+         CZ_FIPS = str_pad(CZ_FIPS, width = 3, pad = "0"))
+
+padded_data <- padded_data %>%
+  unite(FIPS, STATE_FIPS, CZ_FIPS, sep = "-")
+
+head(padded_data)
+
+```
+
+```{r Change all the column names to lower case}
+
+library(dplyr)
+
+lowercase_data <- rename_all(padded_data, tolower)
+
+head(lowercase_data)
+
+```
+
+```{r There is data that comes with base R on U.S. states}
+
+data("state")
+
+state_df <- data.frame(state.name = state.name, area = state.area, region = state.region)
+
+head(state_df)
+
+```
+
+```{r Create a dataframe with the number of events per state in the year of your birth}
+
+library(dplyr)
+
+events_per_state <- arranged_data %>%
+  filter(substr(BEGIN_YEARMONTH, 1, 4) == "1989") %>%
+  group_by(STATE) %>%
+  summarise(num_events = n())
+
+
+merged_data <- merge(state_df, events_per_state, by.x = "state.name", by.y = "STATE", all.x = TRUE)
+
+merged_data <- merged_data[complete.cases(merged_data), ]
+
+merged_data
+
+```
+
+```{r}
+
+library(ggplot2)
+
+ggplot(merged_data, aes(x = area, y = num_events, color = region)) +
+  geom_point() +
+  labs(x = "Land area (square miles)", y = "# of storm events in 1989", color = "Region") +
+  scale_color_manual(values = c("Northeast" = "blue", "South" = "red", "North Central" = "green", "West" = "purple"))
+
+
+```
+
